@@ -13,20 +13,15 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 
+import com.zy.alg.infoextra.instance.GetInstanceWord;
 import com.zy.alg.infoextra.multiinfo.lrentropy.Occurrence;
 import com.zy.alg.infoextra.multiinfo.lrentropy.PairFrequency;
 import com.zy.alg.infoextra.seg.LongSentenceSegment;
+import com.zy.alg.infoextra.textrank.TextRank;
 import com.zy.alg.infoextra.utils.InitialDictionary;
 import com.zy.alg.infoextra.utils.Sort;
 import org.nlpcn.commons.lang.tire.domain.Forest;
 
-import com.zbj.alg.infoextra.instance.GetInstanceWord;
-import com.zbj.alg.infoextra.multiinfo.lrentropy.Occurrence;
-import com.zbj.alg.infoextra.multiinfo.lrentropy.PairFrequency;
-import com.zbj.alg.infoextra.seg.LongSentenceSegment;
-import com.zbj.alg.infoextra.textrank.TextRank;
-import com.zbj.alg.infoextra.utils.InitialDictionary;
-import com.zbj.alg.infoextra.utils.Sort;
 import com.zbj.alg.seg.domain.Result;
 import com.zbj.alg.seg.domain.Term;
 import com.zbj.alg.seg.library.UserDefineLibrary;
@@ -52,7 +47,8 @@ public class KeyWordEnhancer implements KeyWord {
     /**
      * TextRank extract keyword
      */
-	public List<Entry<String, Float>> extractKeyword(String corpus, int wordNum) {
+	@Override
+    public List<Entry<String, Float>> extractKeyword(String corpus, int wordNum) {
 		
 		if(corpus == null
 				|| corpus.equals("")
@@ -137,7 +133,8 @@ public class KeyWordEnhancer implements KeyWord {
 	/**
 	 * MultiInfomation left right Entropy extract keyword
 	 */
-	public Map<String, Double> extractPhrase(String corpus, int wordNum) {
+	@Override
+    public Map<String, Double> extractPhrase(String corpus, int wordNum) {
 		
 		if(corpus == null
 				|| corpus.equals("")

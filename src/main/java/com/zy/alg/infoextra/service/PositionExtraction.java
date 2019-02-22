@@ -2,7 +2,6 @@ package com.zy.alg.infoextra.service;
 
 import java.util.List;
 
-import com.zbj.alg.infoextra.utils.OutputPosiInfo;
 import com.zy.alg.infoextra.utils.OutputPosiInfo;
 
 /**

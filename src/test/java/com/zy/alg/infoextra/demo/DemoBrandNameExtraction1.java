@@ -10,8 +10,8 @@ import java.io.PrintWriter;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import com.zbj.alg.infoextra.service.BrandNameExtraction;
-import com.zbj.alg.infoextra.service.BrandNameExtractionEnhancer;
+import com.zy.alg.infoextra.service.BrandNameExtraction;
+import com.zy.alg.infoextra.service.BrandNameExtractionEnhancer;
 
 public class DemoBrandNameExtraction1 {
 

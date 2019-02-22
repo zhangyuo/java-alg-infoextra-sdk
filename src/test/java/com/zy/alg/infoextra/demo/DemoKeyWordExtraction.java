@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.zbj.alg.infoextra.service.KeyWord;
-import com.zbj.alg.infoextra.service.KeyWordEnhancer;
+import com.zy.alg.infoextra.service.KeyWord;
+import com.zy.alg.infoextra.service.KeyWordEnhancer;
 
 public class DemoKeyWordExtraction {
 	

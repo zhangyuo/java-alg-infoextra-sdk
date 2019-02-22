@@ -16,8 +16,6 @@ import com.zy.alg.infoextra.utils.Sort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.zbj.alg.infoextra.utils.Sort;
-
 public class BrandNameExtractionEnhancer implements BrandNameExtraction {
 
 	private static final Logger logger = LoggerFactory

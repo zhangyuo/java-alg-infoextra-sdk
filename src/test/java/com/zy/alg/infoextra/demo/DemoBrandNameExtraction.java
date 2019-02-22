@@ -2,8 +2,8 @@ package com.zy.alg.infoextra.demo;
 
 import java.io.IOException;
 
-import com.zbj.alg.infoextra.service.BrandNameExtraction;
-import com.zbj.alg.infoextra.service.BrandNameExtractionEnhancer;
+import com.zy.alg.infoextra.service.BrandNameExtraction;
+import com.zy.alg.infoextra.service.BrandNameExtractionEnhancer;
 
 public class DemoBrandNameExtraction {
 	

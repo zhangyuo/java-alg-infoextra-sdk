@@ -1,7 +1,5 @@
 package com.zy.alg.infoextra.word2vec;
 
-import com.zbj.alg.infoextra.word2vec.HuffmanNode;
-
 /**
  * Created by fangy on 13-12-17.
  * 哈夫曼树结点接口

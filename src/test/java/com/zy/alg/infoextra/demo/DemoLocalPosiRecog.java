@@ -9,9 +9,9 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.List;
 
-import com.zbj.alg.infoextra.service.PositionExtraction;
-import com.zbj.alg.infoextra.service.PositionExtractionEnhancer;
-import com.zbj.alg.infoextra.utils.OutputPosiInfo;
+import com.zy.alg.infoextra.service.PositionExtraction;
+import com.zy.alg.infoextra.service.PositionExtractionEnhancer;
+import com.zy.alg.infoextra.utils.OutputPosiInfo;
 
 public class DemoLocalPosiRecog {
 	

@@ -8,8 +8,8 @@ import java.util.Map;
 
 import org.nlpcn.commons.lang.tire.domain.Forest;
 
-import com.zbj.alg.infoextra.utils.InitialDictionary;
-import com.zbj.alg.infoextra.word2vec.VectorModelUTF;
+import com.zy.alg.infoextra.utils.InitialDictionary;
+import com.zy.alg.infoextra.word2vec.VectorModelUTF;
 import com.zbj.alg.seg.domain.Result;
 import com.zbj.alg.seg.domain.Term;
 import com.zbj.alg.seg.library.UserDefineLibrary;

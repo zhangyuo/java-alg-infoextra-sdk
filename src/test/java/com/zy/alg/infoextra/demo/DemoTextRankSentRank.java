@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.zbj.alg.infoextra.service.LongSentenceRank;
-import com.zbj.alg.infoextra.service.LongSentenceRankEnhance;
+import com.zy.alg.infoextra.service.LongSentenceRank;
+import com.zy.alg.infoextra.service.LongSentenceRankEnhance;
 
 public class DemoTextRankSentRank {
 	
