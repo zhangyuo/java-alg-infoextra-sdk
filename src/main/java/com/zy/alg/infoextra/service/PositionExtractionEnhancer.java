@@ -96,9 +96,9 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
             String areaThree = q.getKey().split("&")[2];
             // province
             String provinceName = areaOne.split("/")[0];
-            if (provinceName.equals("新疆")){
-                int a = 0;
-            }
+//            if (provinceName.equals("新疆")){
+//                int a = 0;
+//            }
             if (!wordArea.containsKey(provinceName)) {
                 wordArea.put(provinceName, areaOne);
             } else if (!wordArea.get(provinceName).contains(areaOne)) {
@@ -317,9 +317,9 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
         // 初始化地域词典
         List<Value> areaWords = new ArrayList<Value>();
         for (Map.Entry<String, String> q : wordArea.entrySet()) {
-            if (q.getKey().equals("新疆")) {
-                int a = 1;
-            }
+//            if (q.getKey().equals("新疆")) {
+//                int a = 1;
+//            }
             Value value = new Value(q.getKey(), q.getValue(), "2000");
             areaWords.add(value);
         }
@@ -1068,11 +1068,11 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
         for (AreaFeature v : posiList1) {
             String areaNum = "";
             if (v.getLevel() == 1) {
-                areaNum = v.getProvince();
+                areaNum = v.getProvince() + "/" + v.getProvinceAbbr();
             } else if (v.getLevel() == 2) {
-                areaNum = v.getProvince() + "&" + v.getCity();
+                areaNum = v.getProvince() + "/" + v.getProvinceAbbr() + "&" + v.getCity();
             } else if (v.getLevel() == 3) {
-                areaNum = v.getProvince() + "&" + v.getCity() + "&"
+                areaNum = v.getProvince() + "/" + v.getProvinceAbbr() + "&" + v.getCity() + "&"
                         + v.getDistrict();
             }
             MyEntry<String, Double> me = new MyEntry<String, Double>(
