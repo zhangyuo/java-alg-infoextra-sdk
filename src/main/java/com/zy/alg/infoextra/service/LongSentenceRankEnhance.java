@@ -16,26 +16,19 @@ import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.zy.alg.domain.Result;
+import com.zy.alg.domain.Term;
 import com.zy.alg.infoextra.seg.LongSentenceSegment;
 import com.zy.alg.infoextra.textrank.TextRank;
-import com.zy.alg.infoextra.utils.InitialDictionary;
 import com.zy.alg.infoextra.utils.Sort;
-import com.zy.alg.infoextra.word2vec.Tokenizer;
-import com.zy.alg.infoextra.word2vec.VectorModelUTF;
-import com.zy.alg.infoextra.word2vec.Word2Vec;
-import com.zy.alg.infoextra.word2vec.WordNeuron;
+import com.zy.alg.nlp.crf.ModelParse;
+import com.zy.alg.nlp.server.CRF;
+import com.zy.alg.nlp.server.CRFEnhancer;
+import com.zy.alg.service.AnsjSeg;
+import com.zy.alg.service.AnsjSegImpl;
+import com.zy.alg.util.LoadDic;
+import com.zy.alg.word2vec.VectorModel;
 import org.nlpcn.commons.lang.tire.domain.Forest;
-
-import com.zbj.alg.nlp.crf.ModelParse;
-import com.zbj.alg.nlp.server.CRF;
-import com.zbj.alg.nlp.server.CRFEnhancer;
-import com.zbj.alg.seg.domain.Result;
-import com.zbj.alg.seg.domain.Term;
-import com.zbj.alg.seg.library.UserDefineLibrary;
-import com.zbj.alg.seg.service.ServiceSegModelEnhance;
-import com.zbj.alg.seg.splitWord.IndexAnalysis;
-import com.zbj.alg.seg.splitWord.ToAnalysis;
-import com.zbj.alg.tag.model.VectorModel;
 
 
 public class LongSentenceRankEnhance implements LongSentenceRank {
@@ -43,27 +36,25 @@ public class LongSentenceRankEnhance implements LongSentenceRank {
     private static Forest zbjdic = new Forest();
     private static Forest serdic = new Forest();
     private static VectorModel vm = null;
-    private static VectorModelUTF vm1 = null;
     //CRF模型解析
     private static ModelParse MP = new ModelParse();
 
-    CRF crf = null;
+    CRF crf;
+    AnsjSeg ansjSeg;
 
     private Set<String> sertag = new HashSet<String>();
 
     public LongSentenceRankEnhance(String resourcePath) throws IOException {
 
         String vectorModelPath = resourcePath + "WordVec4GuideTag";
-        String vectorModelPathUTF = resourcePath + "charvecmodel.txt";
         String ZBJDicPath = resourcePath + "zbjsmall.dic";
         String SerLibPath = resourcePath + "ServiceTagLibrary";
         String CRFmodelRealpath = resourcePath + "crfmodel.txt";
 
-        ServiceSegModelEnhance.getInstance();
-        InitialDictionary.insertZBJDic(zbjdic, ZBJDicPath);
-        InitialDictionary.insertSerDic(serdic, SerLibPath);
+        ansjSeg = AnsjSegImpl.getSingleton();
+        LoadDic.insertUserDefineDic(zbjdic,ZBJDicPath);
+        LoadDic.insertUserDefineDic(serdic,SerLibPath);
         vm = VectorModel.loadFromFile(vectorModelPath);
-        vm1 = VectorModelUTF.loadFromFile(vectorModelPathUTF);
         MP.parse(CRFmodelRealpath);
         crf = new CRFEnhancer();
 
@@ -96,7 +87,7 @@ public class LongSentenceRankEnhance implements LongSentenceRank {
         float[] corpusvec = new float[vm.getVectorSize()];
         Map<String, Double> sentnceMap = new HashMap<String, Double>();
         Map<String, float[]> sentnceVecMap = new LinkedHashMap<String, float[]>();
-        Result words = ToAnalysis.parse(corpus, UserDefineLibrary.FOREST, zbjdic);
+        Result words = ansjSeg.textTokenizerUser(corpus, "1", zbjdic);
         StringBuffer sentence = new StringBuffer();
         float[] sentenceVec = new float[vm.getVectorSize()];
         double sum = 1;
@@ -173,243 +164,6 @@ public class LongSentenceRankEnhance implements LongSentenceRank {
     }
 
     /**
-     * char embedding + crf + servicetaglibary
-     */
-    @Override
-    public List<Entry<String, Double>> charvecRank(String corpus) {
-
-        List<Entry<String, Double>> sentSortMap = null;
-        if (corpus == null || corpus.equals("") || corpus.equals("null")) {
-            return sentSortMap;
-        }
-        //标点符号分句
-        StringBuffer query = new StringBuffer();
-        String[] seg = corpus.split("[^\u4e00-\u9fa5a-zA-Z0-9]");
-        for (int i = 0; i < seg.length; i++) {
-            String temp = seg[i].replaceAll("[^\u4e00-\u9fa5a-zA-Z0-9]", "");
-            if (temp.equals("")
-                    || temp == null
-                    || temp.length() < 3
-                    || temp.matches("^[0-9]+"))
-                continue;
-            query.append(temp.toLowerCase() + "#");
-        }
-
-        Map<String, double[]> shortvec = new LinkedHashMap<String, double[]>();
-        double[] longsent = new double[vm1.getVectorSize()];
-        ;
-        String[] shortseg = query.toString().split("#");
-        //短句
-        for (int k = 0; k < shortseg.length; k++) {
-            List<String> charseg = new LinkedList<String>();
-            String[] charsegzh = shortseg[k].split("[^\u4e00-\u9fa5]");
-            String[] charsegen = shortseg[k].split("[\u4e00-\u9fa5]");
-            if (charsegen.length == 0) {
-                String[] charseg1 = charsegzh[0].split("");
-                for (int m = 0; m < charseg1.length; m++) {
-                    if (charseg1[m].equals("")
-                            || charseg1[m].equals("null")
-                            || charseg1[m] == null) {
-                        continue;
-                    }
-                    charseg.add(charseg1[m]);
-                }
-            } else {
-                for (int i = 0, j = 0; i < charsegzh.length & j < charsegen.length; i++, j++) {
-                    String[] charseg2 = charsegzh[i].split("");
-                    j += charsegzh[i].length();
-                    for (int m = 0; m < charseg2.length; m++) {
-                        if (charseg2[m].equals("")
-                                || charseg2[m].equals("null")
-                                || charseg2[m] == null) {
-                            continue;
-                        }
-                        charseg.add(charseg2[m]);
-                    }
-                    if (j >= charsegen.length) {
-                        break;
-                    }
-                    if (charsegen[j].equals("")
-                            || charsegen[j].equals("null")
-                            || charsegen[j] == null) {
-                        continue;
-                    }
-                    charseg.add(charsegen[j]);
-                    i += charsegen[j].length() - 1;
-                    j--;
-                }
-            }
-
-            double[] charvec = new double[vm1.getVectorSize()];
-
-            //字向量
-            for (int m = 0; m < charseg.size(); m++) {
-                if (charseg.get(m).equals("")) {
-                    continue;
-                }
-                if (vm1.getWordMap().containsKey(charseg.get(m))) {
-                    for (int n = 0; n < vm1.getWordVector(charseg.get(m)).length; n++) {
-                        charvec[n] += vm1.getWordVector(charseg.get(m))[n];
-                    }
-                }
-            }
-            //重复分句处理
-            if (shortvec.containsKey(shortseg[k])) {
-                for (int r = 0; r < vm1.getVectorSize(); r++) {
-                    shortvec.get(shortseg[k])[r] += charvec[r];
-                }
-                shortvec.put(shortseg[k], shortvec.get(shortseg[k]));
-            } else {
-                shortvec.put(shortseg[k], charvec);
-            }
-
-            //servicetaglibary
-            Result words = IndexAnalysis.parse(shortseg[k], UserDefineLibrary.FOREST, zbjdic, serdic);
-            double serweight = 1;
-            for (Term w : words) {
-                if (sertag.contains(w.getName())) {
-                    serweight++;
-                }
-            }
-
-            //crf
-            Map<Term, String> centerWord = crf.getWordLabel(shortseg[k], zbjdic, MP);
-            double parse = 1;
-            for (Entry<Term, String> q : centerWord.entrySet()) {
-                if (q.getValue().equals("TH")
-                        & q.getKey().getName().length() > 1
-                        & !q.getKey().getNatureStr().equals("nrfg")
-                        & !q.getKey().getNatureStr().equals("nrt")
-                        & !q.getKey().getNatureStr().equals("o")
-                        & !q.getKey().getNatureStr().equals("q")
-                        & !q.getKey().getNatureStr().equals("nba")
-                        & !q.getKey().getNatureStr().equals("t")
-                        & !q.getKey().getNatureStr().equals("ns")
-                        & !q.getKey().getNatureStr().equals("nr")
-                        & !q.getKey().getNatureStr().equals("m")
-                        & !q.getKey().getNatureStr().equals("j")
-                        & !q.getKey().getNatureStr().equals("z")
-                        & !q.getKey().getNatureStr().equals("a")
-                        & !q.getKey().getNatureStr().equals("r")
-                        & !q.getKey().getNatureStr().equals("l")
-                        & !q.getKey().getNatureStr().equals("d")
-                        & !q.getKey().getNatureStr().equals("mq")
-                        & !q.getKey().getNatureStr().equals("s")
-                        & !q.getKey().getNatureStr().equals("i")
-                        & !q.getKey().getNatureStr().equals("ad")
-                        & !q.getKey().getNatureStr().equals("nsg")
-                        & !q.getKey().getNatureStr().equals("nrf")
-                        & !q.getKey().getNatureStr().equals("f")
-                        & !q.getKey().getNatureStr().equals("nnd")
-                        & !q.getKey().getNatureStr().equals("nf")) {
-                    parse += 3;
-                }
-            }
-
-            for (int i = 0; i < vm1.getVectorSize(); i++) {
-                longsent[i] += (0.7 * parse * charvec[i] + 0.3 * serweight * charvec[i])
-                        / shortseg.length;
-            }
-        }
-
-        //cosin
-        int sentNumber = 0;
-        Map<String, Double> sentMap = new HashMap<String, Double>();
-        for (Entry<String, double[]> v : shortvec.entrySet()) {
-            sentNumber++;
-            Double distance = 0.0;
-            for (int i = 0; i < v.getValue().length; i++) {
-                distance += longsent[i] * v.getValue()[i];
-            }
-            sentMap.put(v.getKey(), Math.exp(-0.1 * sentNumber) * distance);
-        }
-
-        //rank
-        sentSortMap = Sort.sortMap(sentMap);
-
-        return sentSortMap;
-    }
-
-    /**
-     * char embedding + crf + servicetaglibary 单句为整体处理
-     */
-    @Override
-    public List<Entry<String, Double>> singleCharvecRank(String corpus) {
-
-        List<Entry<String, Double>> sentSortMap = null;
-        if (corpus == null || corpus.equals("") || corpus.equals("null")) {
-            return sentSortMap;
-        }
-
-        Word2Vec wv = new Word2Vec.Factory()
-                .setMethod(Word2Vec.Method.Skip_Gram).setNumOfThread(10)
-                .setVectorSize(200).setFreqThresold(1).build();
-        Map<String, WordNeuron> neuronMap = null;
-        StringBuffer query = new StringBuffer();
-        //标点符号分句
-        String[] seg = corpus.split("[^\u4e00-\u9fa5a-zA-Z0-9]");
-        for (int i = 0; i < seg.length; i++) {
-            String temp = seg[i].replaceAll("[^\u4e00-\u9fa5a-zA-Z0-9]", "");
-            if (temp.equals("")
-                    || temp == null
-                    || temp.length() < 3
-                    || temp.matches("^[0-9]+"))
-                continue;
-            query.append(temp.toLowerCase() + "#");
-        }
-        //Word2vec
-        wv.readTokens(new Tokenizer(query.toString(), ""));
-        neuronMap = wv.training();
-
-        Map<String, double[]> shortvec = new HashMap<String, double[]>();
-        double[] longsent = new double[wv.getVectorSize()];
-        ;
-        String[] shortseg = query.toString().split("#");
-        //短句
-        for (int k = 0; k < shortseg.length; k++) {
-            String[] charseg = shortseg[k].split("");
-            double[] charvec = new double[wv.getVectorSize()];
-            //字向量
-            for (int m = 0; m < charseg.length; m++) {
-                if (charseg[m].equals("")) {
-                    continue;
-                }
-                for (int n = 0; n < neuronMap.get(charseg[m]).vector.length; n++) {
-                    charvec[n] += neuronMap.get(charseg[m]).vector[n];
-                }
-            }
-            shortvec.put(shortseg[k], charvec);
-
-            //crf
-            Map<Term, String> centerWord = crf.getWordLabel(shortseg[k], zbjdic, MP);
-            double parse = 1;
-            for (Entry<Term, String> q : centerWord.entrySet()) {
-                if (q.getValue().equals("TH")) {
-                    parse += 3;
-                }
-            }
-            for (int i = 0; i < wv.getVectorSize(); i++) {
-                longsent[i] += parse * charvec[i];
-            }
-        }
-
-        //cosin
-        Map<String, Double> sentMap = new HashMap<String, Double>();
-        for (Entry<String, double[]> v : shortvec.entrySet()) {
-            Double distance = 0.0;
-            for (int i = 0; i < v.getValue().length; i++) {
-                distance += longsent[i] * v.getValue()[i];
-            }
-            sentMap.put(v.getKey(), distance);
-        }
-
-        //rank
-        sentSortMap = Sort.sortMap(sentMap);
-
-        return sentSortMap;
-    }
-
-    /**
      * Textrank long sentence
      */
     @Override
@@ -421,7 +175,7 @@ public class LongSentenceRankEnhance implements LongSentenceRank {
         Map<String, Double> sentRank = new LinkedHashMap<String, Double>();
 
         for (int i = 0; i < segSentence.size(); i++) {
-            Result words = ToAnalysis.parse(segSentence.get(i), UserDefineLibrary.FOREST, zbjdic);
+            Result words = ansjSeg.textTokenizerUser(segSentence.get(i), "1", zbjdic);
             List<String> docs = new LinkedList<String>();
             for (Term q : words) {
                 if (!q.getNatureStr().equals("w")

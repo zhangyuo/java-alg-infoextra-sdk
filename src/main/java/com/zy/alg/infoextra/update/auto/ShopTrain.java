@@ -1,4 +1,4 @@
-package com.zy.alg.infoextra.library.auto;
+package com.zy.alg.infoextra.update.auto;
 
 /**
  * 

@@ -1,4 +1,4 @@
-package com.zy.alg.infoextra.library.util;
+package com.zy.alg.infoextra.update.util;
 
 import java.io.File;
 

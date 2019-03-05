@@ -17,21 +17,20 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.zbj.alg.def.common.Model;
+import com.zy.alg.domain.Result;
+import com.zy.alg.domain.Term;
 import com.zy.alg.infoextra.seg.LongSentenceSegment;
-import com.zy.alg.infoextra.utils.InitialDictionary;
 import com.zy.alg.infoextra.utils.Sort;
+import com.zy.alg.service.AnsjSeg;
+import com.zy.alg.service.AnsjSegImpl;
+import com.zy.alg.splitword.DicAnalysis;
+import com.zy.alg.util.LoadDic;
 import org.nlpcn.commons.lang.tire.domain.Forest;
 import org.nlpcn.commons.lang.tire.domain.Value;
 
 import com.zy.alg.infoextra.utils.AreaFeature;
 import com.zy.alg.infoextra.utils.MyEntry;
 import com.zy.alg.infoextra.utils.OutputPosiInfo;
-import com.zbj.alg.seg.domain.Result;
-import com.zbj.alg.seg.domain.Term;
-import com.zbj.alg.seg.library.LoadDic;
-import com.zbj.alg.seg.service.ServiceSegModel;
-import com.zbj.alg.seg.service.ServiceSegModelEnhance;
-import com.zbj.alg.seg.splitWord.DicAnalysis;
 
 public class PositionExtractionEnhancer implements PositionExtraction, Model {
 
@@ -40,21 +39,9 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
      */
     private static Forest areadic = new Forest();
     /**
-     * 服务标签库
-     */
-    private static Forest serdic = new Forest();
-    /**
-     * 服务类目标签权重:类目标签+权值
-     */
-    private static Map<String, Double> serCatTagWeight = new HashMap<String, Double>();
-    /**
      * 地域缩写词表
      */
     private static Map<String, Set<String>> areaAbbrCity = new HashMap<String, Set<String>>();
-    /**
-     * 服务类目标签分词:seg词+权重
-     */
-    private static Map<String, Double> cateSegWordWeight = new HashMap<String, Double>();
     /**
      * 地域索引词典
      */
@@ -64,50 +51,19 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
      */
     private static Map<String, Map<String, Set<String>>> areaAttrTag = new HashMap<String, Map<String, Set<String>>>();
 
-    ServiceSegModel ssme = null;
+    AnsjSeg ansjSeg;
 
     public PositionExtractionEnhancer(String resourcePath) throws IOException {
 
-        String serCatTagWeightPath = resourcePath + "SerCatTagWeight.txt";
         String cityTablePath = resourcePath + "AreaTagLibrary";
         String abbreviationWordPath = resourcePath + "AbbreviationWord.txt";
 
-        String SerLibPath = resourcePath + "ServiceTagLibrary";
-
-        ssme = ServiceSegModelEnhance.getInstance();
-        InitialDictionary.insertSerDic(serdic, SerLibPath);
-
-        BufferedReader sr = new BufferedReader(new InputStreamReader(
-                new FileInputStream(serCatTagWeightPath), "utf-8"));
+        ansjSeg = AnsjSegImpl.getSingleton();
         BufferedReader cr = new BufferedReader(new InputStreamReader(
                 new FileInputStream(cityTablePath), "utf-8"));
         BufferedReader ar = new BufferedReader(new InputStreamReader(
                 new FileInputStream(abbreviationWordPath), "utf-8"));
-        // 服务类目标签权重加载
-        String sline = null;
-        while ((sline = sr.readLine()) != null) {
-            String[] seg = sline.split("\t");
-            if (seg.length == 2) {
-                serCatTagWeight.put(seg[0].toLowerCase(),
-                        Double.parseDouble(seg[1]));
-                // 类目分词
-                Result words = ssme.parserQuery(seg[0].toLowerCase(), "2");
-                for (Term t : words) {
-                    if (cateSegWordWeight.containsKey(t.getName())) {
-                        cateSegWordWeight.put(t.getName(), 0.5
-                                * cateSegWordWeight.get(t.getName()) + 0.5
-                                * serCatTagWeight.get(seg[0].toLowerCase()));
-                    } else {
-                        cateSegWordWeight.put(t.getName(),
-                                serCatTagWeight.get(seg[0].toLowerCase()));
-                    }
-                }
-            }
-        }
-        sr.close();
-        if (cateSegWordWeight.containsKey("设计")) {
-            cateSegWordWeight.put("设计", 1.0);
-        }
+
         // 地域标签库加载-<area,<attr,<tag>>>
         String cline = null;
         while ((cline = cr.readLine()) != null) {
@@ -140,6 +96,9 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
             String areaThree = q.getKey().split("&")[2];
             // province
             String provinceName = areaOne.split("/")[0];
+            if (provinceName.equals("新疆")){
+                int a = 0;
+            }
             if (!wordArea.containsKey(provinceName)) {
                 wordArea.put(provinceName, areaOne);
             } else if (!wordArea.get(provinceName).contains(areaOne)) {
@@ -358,10 +317,13 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
         // 初始化地域词典
         List<Value> areaWords = new ArrayList<Value>();
         for (Map.Entry<String, String> q : wordArea.entrySet()) {
+            if (q.getKey().equals("新疆")) {
+                int a = 1;
+            }
             Value value = new Value(q.getKey(), q.getValue(), "2000");
             areaWords.add(value);
         }
-        LoadDic.insertZbjDic1(areadic, areaWords);
+        LoadDic.insertUserDefineDic1(areadic, areaWords);
         // 城市缩写词加载
         String aline = null;
         while ((aline = ar.readLine()) != null) {
@@ -381,6 +343,7 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
     /**
      * universal position infomation extraction
      */
+    @Override
     public List<OutputPosiInfo> uniPosiExtra(String querys) {
         if (querys == null || querys.equals("") || querys.equals("null")) {
             return null;
@@ -429,14 +392,15 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
                     }
                 }
                 // 分词判断词是否为地理名词
-                Result parse = ssme.parserQuery(query, "3");
+                Result parse = ansjSeg.textTokenizer(query, "1");
                 Map<String, String> wordparse = new LinkedHashMap<String, String>();
                 int num = 0;
                 for (Term t : parse) {
                     num++;
-                    if (t.getName().length() <= 3) {
+                    /*if (t.getName().length() <= 3) {
                         wordparse.put(num + "#" + t.getNatureStr(), t.getName());
-                    }
+                    }*/
+                    wordparse.put(num + "#" + t.getNatureStr(), t.getName());
                 }
                 Set<AreaFeature> tmpPosiSet = new HashSet<AreaFeature>(); // 输出地名
                 // 四川/省/川&成都/市&金堂/县-位置分析
@@ -477,6 +441,14 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
                             } else if (wordparse.containsValue(maxLoc) || maxLoc.length() >= 4) {
                                 areafeature.setScore(7.0);
                                 posiFlag = true;
+                            } else {
+                                for (String word : wordparse.values()) {
+                                    if (word.contains(maxLoc) & word.length() >= 3) {
+                                        areafeature.setScore(7.0);
+                                        posiFlag = true;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     } else if (areaLen == 2) {
@@ -511,6 +483,14 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
                                         } else {
                                             areafeature.setScore(5.0);
                                         }
+                                        posiFlag = true;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                for (String word : wordparse.values()) {
+                                    if (word.contains(maxLoc) & word.length() >= 3) {
+                                        areafeature.setScore(7.0);
                                         posiFlag = true;
                                         break;
                                     }
@@ -552,6 +532,14 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
                                         } else {
                                             areafeature.setScore(5.0);
                                         }
+                                        posiFlag = true;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                for (String word : wordparse.values()) {
+                                    if (word.contains(maxLoc) & word.length() >= 3) {
+                                        areafeature.setScore(7.0);
                                         posiFlag = true;
                                         break;
                                     }
@@ -652,233 +640,18 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
         return posiList1;
     }
 
-    /**
-     * localize position recongition in task corpus
+    /*
      */
-    public List<OutputPosiInfo> taskPosiRecog(String querys, String category, String origPos) {
-        if (querys == null || querys.equals("") || querys.equals("null")) {
-            return null;
-        }
-        querys = querys.toLowerCase();
-        category = category.toLowerCase();
-        // 类目权重计算
-        String[] cate = category.split("#");
-        double weight = 1.0;
-        if (cate.length == 3) {
-            for (Entry<String, Double> w : serCatTagWeight.entrySet()) {
-                if (w.getKey().equals(cate[0])) {
-                    weight *= w.getValue();
-                }
-                if (w.getKey().equals(cate[1])) {
-                    weight *= w.getValue();
-                }
-                if (w.getKey().equals(cate[2])) {
-                    weight *= w.getValue();
-                }
-            }
-        }
-        // 分句
-        List<String> sent = LongSentenceSegment.longSentSpiltPunctuation(querys);
-        // 类目对seg[0]+seg[1]+seg[2]的影响
-        double cateScore = 0.0;
-        for (int s = 0; s < sent.size() & s < 3; s++) {
-            Result sentWords = ssme.parserQueryUser(sent.get(s), "2", serdic);
-            for (Term w : sentWords) {
-                if (cateSegWordWeight.containsKey(w.getName())) {
-                    if (cateSegWordWeight.get(w.getName()) > 1) {
-                        cateScore += cateSegWordWeight.get(w.getName()) * 10;
-                    } else if (cateSegWordWeight.get(w.getName()) == 1) {
-                        cateScore += 1;
-                    } else if (cateSegWordWeight.get(w.getName()) < 1) {
-                        cateScore -= (1 - cateSegWordWeight.get(w.getName())) * 50;
-                    }
-                }
-            }
-        }
-        if (cateScore == 0.0) {
-            cateScore = weight - 1.01;
-        }
-        List<AreaFeature> posiList = new ArrayList<AreaFeature>(); // 输出地名
-        // 标准城市描述(非省略缩写)
-        for (int i = 0; i < sent.size(); i++) {
-            if (sent.get(i).length() >= 2) {
-                String query = sent.get(i);
-                int segNum = i;
-                Set<AreaFeature> tmpPosiSet = posiExtra(query, segNum, weight, cateScore);
-                // 同一句子中出现包含地名,去除长度短的地名: 重庆/市#渝&重庆/市&江北/区	重庆/市#渝
-                List<AreaFeature> finalList = rvScore(tmpPosiSet);
-                for (AreaFeature a : finalList) {
-                    posiList.add(a);
-                }
-            }
-        }
-        // posiList过滤
-        Map<String, MyEntry<String, Double>> tmpposMap = posiFilter(posiList);
-        Map<String, Double> posMap = new HashMap<String, Double>();
-        for (Map.Entry<String, MyEntry<String, Double>> v : tmpposMap
-                .entrySet()) {
-            posMap.put(v.getKey(), v.getValue().getValue());
-        }
-        // 城市省略缩写描述(江浙沪)
-        for (int i = 0; i < sent.size() & i < 100; i++) {
-            for (Entry<String, Set<String>> a : areaAbbrCity.entrySet()) {
-                if (sent.get(i).contains(a.getKey())) {
-                    double abbScore = 0.0;
-                    abbScore += 5;
-                    // 句内分析
-                    if (sent.get(i).contains("公司")
-                            || sent.get(i).contains("集团")
-                            || sent.get(i).contains("企业")
-                            || sent.get(i).contains("机构")) {
-                        abbScore -= 100;
-                    }
-                    if (sent.get(i).contains("服务商")
-                            || sent.get(i).contains("优先")
-                            || sent.get(i).contains("最好")
-                            || (sent.get(i).contains("限") & !sent.get(i)
-                            .contains("有限"))
-                            || (sent.get(i).contains("地")
-                            & !sent.get(i).contains("地产") & !sent
-                            .get(i).contains("落地"))) {
-                        abbScore += 500;
-                    }
-                    if (sent.get(i).contains("除了")) {
-                        abbScore -= 1000;
-                    }
+/**
+ * find standard position in sentence and compute position score
+ *
+ * @param query
+ * @param segNum
+ * @param weight
+ * @param cateScore
+ * @return
+ *//*
 
-                    // 地点顺序分数
-                    abbScore += 4 * Math.exp(-0.02 * i);
-
-                    // 类目权重过滤
-                    abbScore *= weight;
-                    abbScore += cateScore;
-
-                    for (String aa : a.getValue()) {
-                        if (posMap.containsKey(aa)) {
-                            posMap.put(aa, abbScore + posMap.get(aa));
-                        } else {
-                            posMap.put(aa, abbScore);
-                        }
-                    }
-                }
-            }
-        }
-        // original position from locating
-        String[] origPosSeg = origPos.split("&");
-        int posLength = origPosSeg.length;
-        if (posLength == 1) { // 四川/省
-            for (String q : areaAttrTag.keySet()) {
-                String[] area = q.split("&");
-                String province = area[0].split("/")[0] + "/" + area[0].split("/")[1];
-                if (province.contains(origPosSeg[0])) {
-                    if (!posMap.containsKey(province)) {
-                        posMap.put(province, cateScore);
-                    }
-                    break;
-                }
-            }
-        } else if (posLength == 2) { // 成都/市
-            if (origPosSeg[0].equals(origPosSeg[1])) {
-                for (String q : areaAttrTag.keySet()) {
-                    String[] area = q.split("&");
-                    String province = area[0].split("/")[0] + "/" + area[0].split("/")[1];
-                    if (province.contains(origPosSeg[0])) {
-                        if (!posMap.containsKey(province)) {
-                            posMap.put(province, cateScore);
-                        }
-                        break;
-                    }
-                }
-            } else {
-                for (String q : areaAttrTag.keySet()) {
-                    String[] area = q.split("&");
-                    if (area.length == 3) {
-                        String province = area[0].split("/")[0] + "/" + area[0].split("/")[1];
-                        String city = area[1];
-                        String district = area[2];
-                        String key = province + "&" + city + "&" + district;
-                        if (province.contains(origPosSeg[0])
-                                && (city.contains(origPosSeg[1])
-                                || city.replace("/", "").contains(origPosSeg[1]))) {
-                            if (!posMap.containsKey(province + "&" + city)) {
-                                posMap.put(province + "&" + city, cateScore);
-                            }
-                            break;
-                        } else if (province.contains(origPosSeg[0])
-                                && (city.contains(origPosSeg[1])
-                                || district.replace("/", "").contains(origPosSeg[1]))) {
-                            if (!posMap.containsKey(key)) {
-                                posMap.put(key, cateScore);
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-        } else if (posLength == 3) { // 金堂/县
-            Boolean flag = false;
-            for (String q : areaAttrTag.keySet()) {
-                String[] area = q.split("&");
-                if (area.length == 3) {
-                    String province = area[0].split("/")[0] + "/" + area[0].split("/")[1];
-                    String city = area[1];
-                    String district = area[2];
-                    String key = province + "&" + city + "&" + district;
-                    if (province.contains(origPosSeg[0])
-                            && (city.contains(origPosSeg[1]) || city
-                            .replace("/", "").contains(origPosSeg[1]))
-                            && (district.contains(origPosSeg[2])
-                            || district.replace("/", "").contains(origPosSeg[2]))) {
-                        if (!posMap.containsKey(key)) {
-                            posMap.put(key, cateScore);
-                            flag = true;
-                        }
-                        break;
-                    }
-                }
-            }
-            if (!flag) {
-                for (String q : areaAttrTag.keySet()) {
-                    String[] area = q.split("&");
-                    if (area.length == 3) {
-                        String province = area[0].split("/")[0] + "/" + area[0].split("/")[1];
-                        String city = area[1];
-                        String key = province + "&" + city;
-                        if (province.contains(origPosSeg[0])
-                                && (city.contains(origPosSeg[1])
-                                || city.replace("/", "").contains(origPosSeg[1]))) {
-                            if (!posMap.containsKey(key)) {
-                                posMap.put(key, cateScore);
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        // Rank and out
-        List<Entry<String, Double>> posRankMap = new LinkedList<Entry<String, Double>>();
-        posRankMap = Sort.sortMap(posMap);
-        List<OutputPosiInfo> posiList1 = new ArrayList<OutputPosiInfo>();
-        for (Map.Entry<String, Double> p : posRankMap) {
-            OutputPosiInfo pi = new OutputPosiInfo();
-            pi.setPositionName(p.getKey());
-            pi.setScore(p.getValue());
-            posiList1.add(pi);
-        }
-
-        return posiList1;
-    }
-
-    /**
-     * find standard position in sentence and compute position score
-     *
-     * @param query
-     * @param segNum
-     * @param weight
-     * @param cateScore
-     * @return
-     */
     private Set<AreaFeature> posiExtra(String query, int segNum, Double weight, Double cateScore) {
 
         // 分词获取地名
@@ -916,7 +689,7 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
             }
         }
         // 分词判断词是否为地理名词
-        Result parse = ssme.parserQuery(query, "3");
+        Result parse = ansjSeg.textTokenizer(query,"1");
         Map<String, String> wordparse = new LinkedHashMap<String, String>();
         int num = 0;
         for (Term t : parse) {
@@ -1078,6 +851,7 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
 
         return tmpPosiSet;
     }
+*/
 
     /**
      * 同一句子中出现包含地名,去除长度短的地名: 重庆/市#渝&重庆/市&江北/区	重庆/市#渝
@@ -1368,265 +1142,6 @@ public class PositionExtractionEnhancer implements PositionExtraction, Model {
         }
 
         return tmpposMap;
-    }
-
-    /**
-     * policy position infomation extract
-     *
-     * @param querys (text corpus)
-     * @return
-     */
-    public List<OutputPosiInfo> policyRegExtra(String querys) {
-
-        if (querys == null || querys.equals("") || querys.equals("null")) {
-            return null;
-        }
-        querys = querys.toLowerCase();
-        // 分句
-        List<String> sent = LongSentenceSegment.longSentSpiltPunctuation(querys);
-        List<AreaFeature> posiList = new ArrayList<AreaFeature>(); // 输出地名
-        // 标准城市描述(非省略缩写)
-        for (int i = 0; i < sent.size(); i++) {
-            if (sent.get(i).length() >= 2) {
-                String query = sent.get(i);
-                int segNum = i;
-                // 分词获取地名
-                Map<String, Set<String>> areaWord = new LinkedHashMap<String, Set<String>>(); // 有效地名
-                Result areaParse = DicAnalysis.parse(query, areadic); // 单个词分词用户自定义词典不生效:成都、重庆
-                for (Term t : areaParse) {
-                    if (t.getNatureStr().matches("^[^a-z]+$")) {
-                        String[] key = t.getNatureStr().split("#");
-                        for (int k = 0; k < key.length; k++) {
-                            if (!areaWord.containsKey(key[k])) {
-                                Set<String> set = new HashSet<String>(); // 同一分句相同地域过滤
-                                set.add(t.getName());
-                                areaWord.put(key[k], set);
-                            } else {
-                                Set<String> tmpSet = areaWord.get(key[k]);
-                                tmpSet.add(t.getName());
-                                areaWord.put(key[k], tmpSet);
-                            }
-                        }
-                    } else if (t.getNatureStr().equals("ns")
-                            && wordArea.containsKey(t.getName())) {
-                        String word = t.getName();
-                        String[] key = wordArea.get(word).split("#");
-                        for (int k = 0; k < key.length; k++) {
-                            if (!areaWord.containsKey(key[k])) {
-                                Set<String> set = new HashSet<String>(); // 同一分句相同地域过滤
-                                set.add(t.getName());
-                                areaWord.put(key[k], set);
-                            } else {
-                                Set<String> tmpSet = areaWord.get(key[k]);
-                                tmpSet.add(t.getName());
-                                areaWord.put(key[k], tmpSet);
-                            }
-                        }
-                    }
-                }
-                // 分词判断词是否为地理名词
-                Result parse = ssme.parserQuery(query, "3");
-                Map<String, String> wordparse = new LinkedHashMap<String, String>();
-                int num = 0;
-                for (Term t : parse) {
-                    num++;
-                    if (t.getName().length() <= 3) {
-                        wordparse.put(num + "#" + t.getNatureStr(), t.getName());
-                    }
-                }
-                Set<AreaFeature> tmpPosiSet = new HashSet<AreaFeature>(); // 输出地名
-                // 四川/省/川&成都/市&金堂/县-位置分析
-                for (Map.Entry<String, Set<String>> q : areaWord.entrySet()) {
-                    String fullArea = q.getKey();
-                    int areaLen = fullArea.split("&").length;
-                    Set<String> location = q.getValue();
-                    int locLen = location.size();
-                    String maxLoc = "";
-                    if (locLen <= 2) {
-                        for (String l : location) {
-                            if (l.length() >= maxLoc.length()) {
-                                maxLoc = l;
-                            }
-                        }
-                    }
-                    // 位置-特征-权重计算
-                    AreaFeature areafeature = new AreaFeature();
-                    Boolean posiFlag = false;
-                    if (areaLen == 1) {
-                        // 四川/省/川
-                        areafeature.setLevel(1);
-                        areafeature.setSentNumber(segNum);
-                        String[] proSeg = fullArea.split("/");
-                        if (proSeg.length == 3) {
-                            String province = proSeg[0] + "/" + proSeg[1];
-                            String abbr = proSeg[2];
-                            areafeature.setProvince(province);
-                            areafeature.setProvinceAbbr(abbr);
-                            int index1 = query.indexOf(maxLoc);
-                            areafeature.setStrPosiNumber(index1);
-                            areafeature.setFlagNumber(1);
-                            areafeature.setLevelNameLen(maxLoc.length());
-                            if (locLen == 2) {
-                                areafeature.setScore(7.0);
-                                posiFlag = true;
-                                // 分词过滤不合理省份
-                            } else if (wordparse.containsValue(maxLoc) || maxLoc.length() >= 4) {
-                                areafeature.setScore(7.0);
-                                posiFlag = true;
-                            }
-                        }
-                    } else if (areaLen == 2) {
-                        // 四川/省/川 + 成都/市
-                        areafeature.setLevel(2);
-                        areafeature.setSentNumber(segNum);
-                        String[] areaSeg = fullArea.split("&");
-                        if (areaSeg[0].split("/").length == 3
-                                && areaSeg[1].split("/").length == 2) {
-                            String province = areaSeg[0].split("/")[0] + "/" + areaSeg[0].split("/")[1];
-                            String abbr = areaSeg[0].split("/")[2];
-                            String city = areaSeg[1];
-                            areafeature.setProvince(province);
-                            areafeature.setProvinceAbbr(abbr);
-                            areafeature.setCity(city);
-                            int index2 = query.indexOf(maxLoc);
-                            areafeature.setStrPosiNumber(index2);
-                            areafeature.setFlagNumber(1);
-                            areafeature.setLevelNameLen(maxLoc.length());
-                            if (locLen == 2
-                                    || maxLoc.length() >= 4
-                                    || !fullArea.contains(maxLoc)) {
-                                areafeature.setScore(7.0);
-                                posiFlag = true;
-                            } else if (wordparse.containsValue(maxLoc)) {
-                                // 分词过滤不合理城市
-                                for (Map.Entry<String, String> w : wordparse.entrySet()) {
-                                    if (w.getValue().equals(maxLoc)) {
-                                        String wordstr = w.getKey().split("#")[1];
-                                        if (wordstr.equals("ns")) {
-                                            areafeature.setScore(7.0);
-                                        } else {
-                                            areafeature.setScore(5.0);
-                                        }
-                                        posiFlag = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } else if (areaLen == 3) {
-                        // 四川/省/川 + 成都/市 + 金堂/县
-                        areafeature.setLevel(3);
-                        areafeature.setSentNumber(segNum);
-                        String[] areaSeg = fullArea.split("&");
-                        if (areaSeg[0].split("/").length == 3
-                                && areaSeg[1].split("/").length == 2
-                                && areaSeg[2].split("/").length == 2) {
-                            String province = areaSeg[0].split("/")[0] + "/" + areaSeg[0].split("/")[1];
-                            String abbr = areaSeg[0].split("/")[2];
-                            String city = areaSeg[1];
-                            String district = areaSeg[2];
-                            areafeature.setProvince(province);
-                            areafeature.setProvinceAbbr(abbr);
-                            areafeature.setCity(city);
-                            areafeature.setDistrict(district);
-                            int index3 = query.indexOf(maxLoc);
-                            areafeature.setStrPosiNumber(index3);
-                            areafeature.setFlagNumber(1);
-                            areafeature.setLevelNameLen(maxLoc.length());
-                            if (locLen == 2
-                                    || maxLoc.length() >= 4
-                                    || !fullArea.contains(maxLoc)) {
-                                areafeature.setScore(7.0);
-                                posiFlag = true;
-                            } else if (wordparse.containsValue(maxLoc)) {
-                                // 分词过滤不合理城市
-                                for (Map.Entry<String, String> w : wordparse.entrySet()) {
-                                    if (w.getValue().equals(maxLoc)) {
-                                        String wordstr = w.getKey().split("#")[1];
-                                        if (wordstr.equals("ns")) {
-                                            areafeature.setScore(7.0);
-                                        } else {
-                                            areafeature.setScore(5.0);
-                                        }
-                                        posiFlag = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // 句内分析
-                    Double score = areafeature.getScore();
-                    if (query.contains("公司") || query.contains("集团")
-                            || query.contains("企业") || query.contains("机构")
-                            || query.contains("便民")
-                            || query.contains("新华社")) {
-                        score -= 100;
-                    }
-                    // 地点顺序分数
-//					score += 5 * Math.exp(-0.02 * segNum);
-                    score += 5 * Math.exp(10 / (segNum + 1));// 越靠前越好
-                    areafeature.setScore(score);
-                    // 地理位置装载
-                    if (posiFlag) {
-                        tmpPosiSet.add(areafeature);
-                    }
-                }
-                // 同一句子中出现包含地名,去除长度短的地名: 重庆/市#渝&重庆/市&江北/区	重庆/市#渝
-                List<AreaFeature> finalList = rvScore(tmpPosiSet);
-                for (AreaFeature a : finalList) {
-                    posiList.add(a);
-                }
-            }
-        }
-        // posiList过滤
-        Map<String, MyEntry<String, Double>> tmpposMap = posiFilter(posiList);
-        Map<String, Double> posMap = new HashMap<String, Double>();
-        for (Map.Entry<String, MyEntry<String, Double>> v : tmpposMap
-                .entrySet()) {
-            posMap.put(v.getKey(), v.getValue().getValue());
-        }
-        // 城市省略缩写描述(江浙沪)
-        for (int i = 0; i < sent.size() & i < 100; i++) {
-            for (Entry<String, Set<String>> a : areaAbbrCity.entrySet()) {
-                if (sent.get(i).contains(a.getKey())) {
-                    double abbScore = 0.0;
-                    abbScore += 5;
-                    // 句内分析
-                    if (sent.get(i).contains("公司")
-                            || sent.get(i).contains("集团")
-                            || sent.get(i).contains("企业")
-                            || sent.get(i).contains("机构")
-                            || sent.get(i).contains("便民")
-                            || sent.get(i).contains("新华社")) {
-                        abbScore -= 100;
-                    }
-                    // 地点顺序分数
-                    abbScore += 4 * Math.exp(10 / (i + 1));
-//					abbScore += 4 * Math.exp(-0.02 * i);
-
-                    for (String aa : a.getValue()) {
-                        if (posMap.containsKey(aa)) {
-                            posMap.put(aa, abbScore + posMap.get(aa));
-                        } else {
-                            posMap.put(aa, abbScore);
-                        }
-                    }
-                }
-            }
-        }
-        // Rank and out
-        List<Entry<String, Double>> posRankMap = new LinkedList<Entry<String, Double>>();
-        posRankMap = Sort.sortMap(posMap);
-        List<OutputPosiInfo> posiList1 = new ArrayList<OutputPosiInfo>();
-        for (Map.Entry<String, Double> p : posRankMap) {
-            OutputPosiInfo pi = new OutputPosiInfo();
-            pi.setPositionName(p.getKey());
-            pi.setScore(p.getValue());
-            posiList1.add(pi);
-        }
-
-        return posiList1;
     }
 
     @Override

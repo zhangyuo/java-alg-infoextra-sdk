@@ -12,13 +12,5 @@ public interface KeyWord {
 	 * @return
 	 */
 	List<Map.Entry<String, Float>> extractKeyword(String corpus, int wordNum);
-	
-	/**
-	 * MultiInfomation left right Entropy extract keyword
-	 * @param corpus
-	 * @param wordNum
-	 * @return
-	 */
-	Map<String,Double> extractPhrase(String corpus, int wordNum);
 
 }

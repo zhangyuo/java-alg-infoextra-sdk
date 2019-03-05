@@ -15,37 +15,42 @@
     </properties>
 
     <dependencies>
-
         <dependency>
-            <groupId>com.zbj.alg</groupId>
-            <artifactId>Java-alg-seg-model</artifactId>
-            <version>0.0.10-SNAPSHOT</version>
+            <groupId>com.zy.alg</groupId>
+            <artifactId>java-ansj-seg</artifactId>
+            <version>1.0</version>
         </dependency>
-
         <dependency>
             <groupId>com.zbj.alg.def</groupId>
             <artifactId>alg-core-definition</artifactId>
             <version>1.0.7</version>
         </dependency>
-
         <dependency>
             <groupId>org.nlpcn</groupId>
             <artifactId>nlp-lang</artifactId>
             <version>1.7.2</version>
         </dependency>
-
         <dependency>
-            <groupId>com.zbj.alg.zjl</groupId>
-            <artifactId>java-alg-tag-standard</artifactId>
-            <version>1.2.10</version>
+            <groupId>com.zy.alg</groupId>
+            <artifactId>java-alg-word2vec-sdk</artifactId>
+            <version>1.0</version>
         </dependency>
-
         <dependency>
-            <groupId>com.zbj.alg</groupId>
+            <groupId>com.zy.alg</groupId>
             <artifactId>java-alg-nlp-sdk</artifactId>
-            <version>0.0.1</version>
+            <version>1.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.21</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.21</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -62,18 +67,5 @@
             </plugin>
         </plugins>
     </build>
-
-    <distributionManagement>
-        <repository>
-            <id>releases</id>
-            <name>releases</name>
-            <url>http://maven.zhubajie.la/repository/releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>snapshots</id>
-            <name>snapshots</name>
-            <url>http://maven.zhubajie.la/repository/snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
 
 </project>

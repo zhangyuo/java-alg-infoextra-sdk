@@ -26,30 +26,11 @@
  	|corpus|输入文本|无|
  	|wordNum|返回词个数|无|
  * 返回值说明：List<Map.Entry<String, Float>>
-
-* KeyWord.extractPhrase(String corpus, int wordNum)方法
- * 方法描述：根据输入文本提取文本的关键词-MultiInfomation left right Entropy
- * 输入参数：
- 
- 	| 名称 | 含义 | 备注 |
- 	|:-------:|:-------:|:-------:|
- 	|corpus|输入文本|无|
- 	|wordNum|返回词个数|无|
- * 返回值说明：Map<String,Double>
  
 3.关键句排序
 
 * LongSentenceRank.wordvecRank(String corpus)方法
  * 方法描述：根据输入文本排序文本关键句-词向量
- * 输入参数：
- 
- 	| 名称 | 含义 | 备注 |
- 	|:-------:|:-------:|:-------:|
- 	|corpus|输入文本|无|
- * 返回值说明：List<Entry<String, Double>>
- 
-* LongSentenceRank.charvecRank(String corpus)方法
- * 方法描述：根据输入文本排序文本关键句-字向量
  * 输入参数：
  
  	| 名称 | 含义 | 备注 |
@@ -67,29 +48,9 @@
  * 返回值说明：List<Entry<String, Double>>
 
 4.地理位置信息提取
-
-* PositionExtraction.taskPosiRecog(String corpus, String category, String origPos)方法
- * 方法描述：根据输入订单文本识别是否为本地化需求
- * 输入参数：
- 
- 	| 名称 | 含义 | 备注 |
- 	|:-------:|:-------:|:-------:|
- 	|querys|输入文本|无|
- 	|category|类目信息|cate1#cate2#cate3|
- 	|origPos|文本发布地信息|广西&南宁&武鸣|
- * 返回值说明：List<OutputPosiInfo>
  
 * PositionExtraction.uniPosiExtra(String corpus)方法
  * 方法描述：根据输入文本提取通用地理位置信息
- * 输入参数：
- 
- 	| 名称 | 含义 | 备注 |
- 	|:-------:|:-------:|:-------:|
- 	|querys|输入文本|无|
- * 返回值说明：List<OutputPosiInfo>
- 
-* PositionExtraction.policyRegExtra(String corpus)方法
- * 方法描述：根据输入政策文本提取主要的政策发布位置信息
  * 输入参数：
  
  	| 名称 | 含义 | 备注 |

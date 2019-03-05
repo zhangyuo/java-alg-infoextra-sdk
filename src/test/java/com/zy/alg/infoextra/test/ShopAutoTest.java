@@ -1,7 +1,7 @@
 package com.zy.alg.infoextra.test;
 
-import com.zy.alg.infoextra.library.auto.ShopTrain;
-import com.zy.alg.infoextra.library.auto.impl.ShopTrainImpl;
+import com.zy.alg.infoextra.update.auto.ShopTrain;
+import com.zy.alg.infoextra.update.auto.impl.ShopTrainImpl;
 
 /**
  * brand name auto train
