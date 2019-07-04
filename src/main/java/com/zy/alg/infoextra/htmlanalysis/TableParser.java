@@ -1,6 +1,5 @@
 package com.zy.alg.infoextra.htmlanalysis;
 
-import com.zy.alg.infoextra.utils.TableInfo;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -23,7 +22,7 @@ public class TableParser {
     private static Logger logger = LoggerFactory.getLogger(TableParser.class);
 
     /**
-     * table parser
+     * 主函数1：仅提取html文件表格信息，不进行列<行，列，值，单位>的对应解析，输出含表格矩阵的json格式
      *
      * @param file html file
      * @return
@@ -95,6 +94,47 @@ public class TableParser {
             logger.error("table parser failed. " + e);
             return null;
         }
+    }
+
+    /**
+     * 主函数2：html文件提取table，并解析table，输出txt
+     *
+     * @param filePath
+     * @return
+     */
+    public static List<String> getTableTxt(String filePath) {
+        List<String> tableList = new ArrayList<>();
+        File file = new File(filePath);
+        try {
+            Document doc = Jsoup.parse(file, "utf-8");
+            Elements elements = doc.getElementsByTag("table");
+            int tableIndex = 0;
+            boolean isInvalid = true;
+            String lastHeader = "";
+            for (int i = 0; i < elements.size(); i++) {
+                Element element = elements.get(i);
+                tableIndex++;
+                TableInfo tableInfo = getTableMatrix(element, tableIndex, isInvalid);
+                isInvalid = tableInfo.getLastInvalid();
+                List<TableInfo> list = new ArrayList<>();
+                list.add(tableInfo);
+                if (tableInfo.getMatrix() != null) {
+                    JSONArray jsonArray = JSONArray.fromObject(list);
+                    String json = "{" + "\n" + "\"data\":" + "\n" + jsonArray.toString() + "\n" + "}";
+                    // 横表、竖表判断，提取字段<行，列，值，单位>
+                    String result = getTableParserInfo(json);
+                    if (tableInfo.getDescribe().equals("连续表")) {
+                        result = result.replace("连续表", lastHeader);
+                    } else {
+                        lastHeader = tableInfo.getDescribe();
+                    }
+                    tableList.add(result);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return tableList;
     }
 
     /**
@@ -278,5 +318,66 @@ public class TableParser {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 提取html文件表格信息，进行列<行，列，值，单位>的对应解析,输出txt
+     *
+     * @param json
+     * @return
+     */
+    private static String getTableParserInfo(String json) {
+        return JsonParser.getTableData(json);
+    }
+
+    /**
+     * @param element
+     * @param index
+     * @param isInvalid
+     * @return
+     */
+    private static TableInfo getTableMatrix(Element element, int index, Boolean isInvalid) {
+        TableInfo tableInfo = new TableInfo();
+        // 表格描述提取
+        String describe = "";
+        if (isInvalid) {
+            describe = searchTableBaseInfo(element);
+        } else {
+            Element tableTag1 = element;
+            while (true) {
+                Element tableTagNew = tableTag1.previousElementSibling();
+                if (tableTagNew == null) {
+                    break;
+                } else {
+                    describe = tableTagNew.text();
+                    if (!describe.equals("")) {
+                        break;
+                    } else {
+                        tableTag1 = tableTagNew;
+                    }
+                }
+            }
+        }
+        // 更新表格有效性
+        isInvalid = true;
+        // 表格基础信息提取
+        String tableColRow = searchTableBaseInfo(element);
+        String[] seg = tableColRow.split("#");
+        int tableCol = Integer.parseInt(seg[0]);
+        int tableRow = Integer.parseInt(seg[1]);
+        int invalid = Integer.parseInt(seg[2]);
+        String[][] strMatrix = null;
+        if (invalid == 0) {
+            logger.info("find a invalid table tag ...");
+            isInvalid = false;
+        } else {
+            strMatrix = generateTableMatrix(element, tableCol, tableRow);
+        }
+        tableInfo.setDescribe(describe);
+        tableInfo.setTableIndex(index);
+        tableInfo.setMatrix(strMatrix);
+        tableInfo.setLastInvalid(isInvalid);
+
+        return tableInfo;
     }
 }

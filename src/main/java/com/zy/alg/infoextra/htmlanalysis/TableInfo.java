@@ -1,4 +1,6 @@
-package com.zy.alg.infoextra.utils;
+package com.zy.alg.infoextra.htmlanalysis;
+
+import com.sun.org.apache.xpath.internal.operations.Bool;
 
 /**
  * @author zhangycqupt@163.com
@@ -8,15 +10,20 @@ public class TableInfo {
     /**
      * table sequence number
      */
-    int tableIndex;
+    private int tableIndex;
     /**
      * table header
      */
-    String describe;
+    private String describe;
     /**
      * table matrix
      */
-    String[][] matrix;
+    private String[][] matrix;
+
+    /**
+     * table valid
+     */
+    private Boolean lastInvalid;
 
     public void setTableIndex(int tableIndex) {
         this.tableIndex = tableIndex;
@@ -40,6 +47,14 @@ public class TableInfo {
 
     public String[][] getMatrix() {
         return matrix;
+    }
+
+    public void setLastInvalid(Boolean lastInvalid) {
+        this.lastInvalid = lastInvalid;
+    }
+
+    public Boolean getLastInvalid() {
+        return lastInvalid;
     }
 
 }
