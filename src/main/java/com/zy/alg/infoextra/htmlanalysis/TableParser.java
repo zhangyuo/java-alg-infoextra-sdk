@@ -1,5 +1,7 @@
 package com.zy.alg.infoextra.htmlanalysis;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -19,7 +21,8 @@ import java.util.List;
  * @date 2019/03/06 17:21
  */
 public class TableParser {
-    private static Logger logger = LoggerFactory.getLogger(TableParser.class);
+    /*private static Logger logger = LoggerFactory.getLogger(TableParser.class);*/
+    private static Log logger = LogFactory.getLog(TableParser.class);
 
     /**
      * 主函数1：仅提取html文件表格信息，不进行列<行，列，值，单位>的对应解析，输出含表格矩阵的json格式
@@ -97,7 +100,7 @@ public class TableParser {
     }
 
     /**
-     * 主函数2：html文件提取table，并解析table，输出txt
+     * 主函数2：html文件提取table，并解析table<行，列，值，单位>信息，输出txt
      *
      * @param filePath
      * @return
@@ -110,26 +113,28 @@ public class TableParser {
             Elements elements = doc.getElementsByTag("table");
             int tableIndex = 0;
             boolean isInvalid = true;
-            String lastHeader = "";
-            for (int i = 0; i < elements.size(); i++) {
-                Element element = elements.get(i);
+            String lastTableName = "";
+            for (Element element : elements) {
                 tableIndex++;
-                TableInfo tableInfo = getTableMatrix(element, tableIndex, isInvalid);
+                TableInfo tableInfo = getTableInfo(element, tableIndex, isInvalid);
                 isInvalid = tableInfo.getLastInvalid();
+                if (tableInfo.getMatrix() == null) {
+                    continue;
+                }
+                if ("连续表".equals(tableInfo.getDescribe())) {
+                    tableInfo.setDescribe(lastTableName);
+                } else {
+                    lastTableName = tableInfo.getDescribe();
+                }
                 List<TableInfo> list = new ArrayList<>();
                 list.add(tableInfo);
-                if (tableInfo.getMatrix() != null) {
-                    JSONArray jsonArray = JSONArray.fromObject(list);
-                    String json = "{" + "\n" + "\"data\":" + "\n" + jsonArray.toString() + "\n" + "}";
-                    // 横表、竖表判断，提取字段<行，列，值，单位>
-                    String result = getTableParserInfo(json);
-                    if (tableInfo.getDescribe().equals("连续表")) {
-                        result = result.replace("连续表", lastHeader);
-                    } else {
-                        lastHeader = tableInfo.getDescribe();
-                    }
-                    tableList.add(result);
-                }
+                JSONArray jsonArray = JSONArray.fromObject(list);
+                // 此情况仅一个表格
+                String json = "{" + "\n" + "\"data\":" + "\n" + jsonArray.toString() + "\n" + "}";
+                // 横表、竖表判断，提取字段<行，列，值，单位>
+                String result = getTableParserInfo(json);
+                result = tableIndex + "#表名：" + tableInfo.getDescribe() + "\n" + result;
+                tableList.add(result);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -150,8 +155,8 @@ public class TableParser {
         try {
             strMatrix = new String[tableRow][tableCol];
             Elements tr = tableTag.getElementsByTag("tr");
-            for (int i = 0; i < tr.size(); i++) {
-                int rowIndex = i;
+            for (int i = tr.size() - tableRow; i < tr.size(); i++) {
+                int rowIndex = i - (tr.size() - tableRow);
                 Elements td = tr.get(i).getElementsByTag("td");
                 for (int j = 0; j < td.size(); j++) {
                     int colIndex = j;
@@ -223,34 +228,52 @@ public class TableParser {
      * @return
      */
     private static String searchTableBaseInfo(Element tableTag) {
-        int tableCol = 0;
-        int tableRow = tableTag.getElementsByTag("tr").size();
         Elements trHead = tableTag.getElementsByTag("tr");
-        float emptyHead = 0;
-        for (int i = 0; i < tableRow; i++) {
-            Elements td = trHead.get(i).getElementsByTag("td");
-            for (int j = 0; j < td.size(); j++) {
-                String tdStr = td.get(j).text().trim().replaceAll("[,]", "");
-                if (tdStr.equals("")) {
-                    emptyHead++;
-                }
-                Elements colElement = td.get(j).getElementsByAttribute("colspan");
-                if (colElement.size() != 0) {
-                    int tmpNum = Integer.parseInt(colElement.get(0).attr("colspan"));
-                    tableCol += tmpNum;
-                } else {
-                    tableCol++;
-                }
-            }
-            //执行一次
-            break;
-        }
-        // 有效性检查
+        // 表格行数
+        int tableRow = trHead.size();
+        // 表格列数
+        int tableCol = 0;
+        // 表格有效性
         int invalid = 1;
-        if (emptyHead / tableCol > 0.8 || tableCol < 1 || tableRow < 2) {
-            invalid = 0;
+
+        // 表格格式判断
+        if (tableRow == 1) {
+            /*仅一行表格*/
+            return tableCol + "#" + tableRow + "#" + invalid;
+        } else {
+            float emptyHead = 0;
+            for (int i = 0; i < tableRow; i++) {
+                Elements td = trHead.get(i).getElementsByTag("td");
+                // 判断表格第一行第一列字串长度，判断表名是否在表第一行
+                String firstWord = JsonParser.spValueProcess(trHead.get(0).getElementsByTag("td").get(0).text());
+                // 首行列数限制
+                int colMax = 30;
+                if (firstWord.length() > 25 || firstWord.contains("单位") || td.size() > colMax) {
+                    // 排除第一行
+                    tableRow -= 1;
+                    continue;
+                }
+                for (int j = 0; j < td.size(); j++) {
+                    String tdStr = td.get(j).text().trim().replaceAll("[,]", "");
+                    if (tdStr.equals("")) {
+                        emptyHead++;
+                    }
+                    Elements colElement = td.get(j).getElementsByAttribute("colspan");
+                    if (colElement.size() != 0) {
+                        int tmpNum = Integer.parseInt(colElement.get(0).attr("colspan"));
+                        tableCol += tmpNum;
+                    } else {
+                        tableCol++;
+                    }
+                }
+                //执行一次
+                break;
+            }
+            if (emptyHead / tableCol > 0.8 || tableCol < 1 || tableRow < 2) {
+                invalid = 0;
+            }
+            return tableCol + "#" + tableRow + "#" + invalid;
         }
-        return tableCol + "#" + tableRow + "#" + invalid;
     }
 
     /**
@@ -303,7 +326,7 @@ public class TableParser {
         } catch (Exception e) {
             logger.error("search table describe failed. " + e);
         }
-        return des;
+        return des.replaceAll("\n", "");
     }
 
     /**
@@ -313,7 +336,7 @@ public class TableParser {
      * @return
      */
     private static boolean checkSentence(String des) {
-        String[] seg = des.split("[，。,.]");
+        String[] seg = des.split("[、，。,.]");
         if (seg.length >= 2) {
             return true;
         }
@@ -336,12 +359,13 @@ public class TableParser {
      * @param isInvalid
      * @return
      */
-    private static TableInfo getTableMatrix(Element element, int index, Boolean isInvalid) {
+    private static TableInfo getTableInfo(Element element, int index, Boolean isInvalid) {
         TableInfo tableInfo = new TableInfo();
         // 表格描述提取
+        /*表格前信息判断*/
         String describe = "";
         if (isInvalid) {
-            describe = searchTableBaseInfo(element);
+            describe = searchTableDecribe(element);
         } else {
             Element tableTag1 = element;
             while (true) {
@@ -358,6 +382,8 @@ public class TableParser {
                 }
             }
         }
+        /*表格中信息判断*/
+        describe = updateDescreInTable(element, describe);
         // 更新表格有效性
         isInvalid = true;
         // 表格基础信息提取
@@ -379,5 +405,24 @@ public class TableParser {
         tableInfo.setLastInvalid(isInvalid);
 
         return tableInfo;
+    }
+
+    /**
+     * 表格信息中提取描述
+     *
+     * @param element
+     * @param describe
+     * @return
+     */
+    private static String updateDescreInTable(Element element, String describe) {
+        // 获取首行首列字段
+        String word = element.getElementsByTag("tr").get(0).getElementsByTag("td").get(0).text().trim();
+        if (word.contains("单位") && !describe.contains("单位")) {
+            String[] tmp = word.split("单位");
+            word = tmp[0] + "单位" + tmp[1].substring(0, 5);
+            return word;
+        } else {
+            return describe;
+        }
     }
 }

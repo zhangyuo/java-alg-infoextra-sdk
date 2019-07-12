@@ -3,6 +3,7 @@ package com.zy.alg.infoextra.demo;
 import com.zy.alg.infoextra.htmlanalysis.TableParser;
 
 import java.io.*;
+import java.util.List;
 
 /**
  * @author zhangycqupt@163.com
@@ -10,7 +11,7 @@ import java.io.*;
  */
 public class DemoTableParser {
     public static void main(String[] args) {
-        String htmlPath = "/Users/zhangyu/Desktop/";
+        String htmlPath = "/Users/zhangyu/Documents/IntelliJ IDEA/java-alg-infoextra-sdk/src/main/java/com/zy/alg/infoextra/htmlanalysis/";
         String outputJsonPath = htmlPath;
         PrintWriter pw;
         // several html file
@@ -23,7 +24,7 @@ public class DemoTableParser {
                 String fileName = file.toString().replace(htmlPath, "");
                 System.out.println(++num + "#\t" + fileName);
                 // 提取html表格信息
-                String json = TableParser.tableAnalysys(file);
+                /*String json = TableParser.tableAnalysys(file);
                 try {
                     pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream
                             (outputJsonPath + fileName.replace(".htm", "") + ".json"), "utf-8"));
@@ -31,8 +32,12 @@ public class DemoTableParser {
                     pw.close();
                 } catch (IOException e) {
                     e.printStackTrace();
+                }*/
+                // 解析表格行列字段
+                List<String> result = TableParser.getTableTxt(file.toString());
+                for (String a : result){
+                    System.out.println(a);
                 }
-
             }
         }
     }
