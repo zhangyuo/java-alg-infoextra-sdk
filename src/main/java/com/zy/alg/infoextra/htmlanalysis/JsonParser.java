@@ -247,21 +247,31 @@ public class JsonParser {
      * @return
      */
     private static JSONArray mergeCells(JSONArray tableMatrix) {
-        String[][] matrix = new String[tableMatrix.size() - 1][tableMatrix.getJSONArray(0).size()];
+        // 判断合并几行
+        int mergeNum = 0;
+        for (int r = 1; r < tableMatrix.size(); r++) {
+            boolean flag = judgeRowHasNum(tableMatrix, r);
+            if (!flag) {
+                mergeNum++;
+            } else {
+                break;
+            }
+        }
+        String[][] matrix = new String[tableMatrix.size() - mergeNum][tableMatrix.getJSONArray(0).size()];
         for (int i = 0; i < tableMatrix.size(); i++) {
             for (int j = 0; j < tableMatrix.getJSONArray(i).size(); j++) {
-                if (i == 1) {
+                if (i <= mergeNum && i >= 1) {
                     //合并到第一行
-                    matrix[0][j] += "-" + tableMatrix.getJSONArray(1).get(j).toString();
-                } else if (i >= 2) {
+                    matrix[0][j] += "-" + tableMatrix.getJSONArray(mergeNum).get(j).toString();
+                } else if (i >= mergeNum + 1) {
                     // 正常存储
-                    matrix[i - 1][j] = tableMatrix.getJSONArray(i).get(j).toString();
+                    matrix[i - mergeNum][j] = tableMatrix.getJSONArray(i).get(j).toString();
                 } else {
                     // i == 0
                     matrix[i][j] = tableMatrix.getJSONArray(i).get(j).toString();
                     // 第一行最后列空值处理
                     if (j == tableMatrix.getJSONArray(i).size() - 1) {
-                        if (spValueProcess(tableMatrix.getJSONArray(i).get(j).toString()).equals("")) {
+                        if (tableMatrix.getJSONArray(i).get(j).toString().equals("")) {
                             matrix[0][j] = matrix[0][j - 1];
                         }
                     }
@@ -312,20 +322,15 @@ public class JsonParser {
                 type = 2;
             } else {
                 // 判断第二行是否不存在数值
-                boolean isNum = false;
-                for (int j = 0; j < tableMatrix.getJSONArray(1).size(); j++) {
-                    String string = spValueProcess(tableMatrix.getJSONArray(1).get(j).toString());
-                    if (string.matches("^[-]{0,1}[0-9]+[.]{0,1}[0-9]*$")) {
-                        isNum = true;
-                    }
-                }
+                int rowNum = 1;
+                boolean isNum = judgeRowHasNum(tableMatrix, rowNum);
                 if (isNum) {
                     // 第二行存在数值，不需合并单元格
                     type = 1;
                 } else {
-                    // 第二行存在数值需合并单元格
+                    // 第二行不存在数值需合并单元格
                     // 判断第二行是否存在重复取列
-                    int rowNum = 1;
+                    rowNum = 1;
                     if (isRepCol(tableMatrix, rowNum)) {
                         type = 3;
                     } else {
@@ -334,7 +339,13 @@ public class JsonParser {
                 }
             }
         } else {
-            type = 1;
+            // 判断第二行是否存在数值
+            int rowNum = 2;
+            if (!judgeRowHasNum(tableMatrix, rowNum)) {
+                type = 2;
+            } else {
+                type = 1;
+            }
         }
 
         // 判断第一行是否存在多列重复
@@ -345,6 +356,23 @@ public class JsonParser {
             }
         }
         return type;
+    }
+
+    /**
+     * 判断行是否存在数值
+     * @param tableMatrix
+     * @param rowNum
+     * @return
+     */
+    private static boolean judgeRowHasNum(JSONArray tableMatrix, int rowNum) {
+        boolean isNum = false;
+        for (int j = 0; j < tableMatrix.getJSONArray(rowNum).size(); j++) {
+            String string = spValueProcess(tableMatrix.getJSONArray(rowNum).get(j).toString());
+            if (string.matches("^[-]{0,1}[0-9]+[.]{0,1}[0-9]*$")) {
+                isNum = true;
+            }
+        }
+        return isNum;
     }
 
     /**
@@ -420,14 +448,11 @@ public class JsonParser {
         List<String> dataList = new ArrayList<>();
         for (int i = 1; i < tableMatrix.size(); i++) {
             for (int j = 1; j < tableMatrix.getJSONArray(i).size(); j++) {
-                String data = String.valueOf(tableMatrix.getJSONArray(i).get(j)).trim();
+                String data = tableMatrix.getJSONArray(i).get(j).toString();
                 String col = colHeader[j - 1];
                 String row = rowHeader[i - 1];
-                data = spValueProcess(data);
-                col = spValueProcess(col);
-                row = spValueProcess(row);
                 String unitNew = updateUnit(col, row);
-                String string = "";
+                String string;
                 if (!unitNew.equals("")) {
                     string = col + "," + row + "," + data + "," + unitNew;
                 } else {
@@ -448,7 +473,7 @@ public class JsonParser {
      */
     public static String spValueProcess(String str) {
         /*特殊字符*/
-        str = str.trim().replaceAll("[\t\n ]", "");
+        str = str.trim().replaceAll("[ \t,\n ]", "");
         return str;
     }
 
@@ -475,6 +500,9 @@ public class JsonParser {
             }
             if (string.contains("%")) {
                 unit = "%";
+            }
+            if (string.contains("序号") || string.contains("排序")) {
+                unit = "";
             }
         }
         return unit;
@@ -523,9 +551,15 @@ public class JsonParser {
      * @return
      */
     private static String[] extractRowHeader(JSONArray tableMatrix) {
+        // 判断首列是否为空值
+        int rowNum = 0;
+        if (tableMatrix.getJSONArray(1).get(0).toString().equals("")
+                && tableMatrix.getJSONArray(2).get(0).toString().equals("")) {
+            rowNum = 1;
+        }
         String[] rowHeader = new String[tableMatrix.size()];
         for (int i = 1; i < tableMatrix.size(); i++) {
-            String data = String.valueOf(tableMatrix.getJSONArray(i).get(0));
+            String data = tableMatrix.getJSONArray(i).get(rowNum).toString();
             rowHeader[i - 1] = data.replaceAll("\n", "");
         }
         return rowHeader;
@@ -541,7 +575,7 @@ public class JsonParser {
         JSONArray colArray = tableMatrix.getJSONArray(0);
         String[] colHeader = new String[colArray.size()];
         for (int i = 1; i < colArray.size(); i++) {
-            String data = String.valueOf(colArray.get(i));
+            String data = colArray.get(i).toString();
             colHeader[i - 1] = data.replaceAll("\n", "");
         }
         return colHeader;

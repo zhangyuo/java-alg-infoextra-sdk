@@ -157,13 +157,12 @@ public class TableParser {
             Elements tr = tableTag.getElementsByTag("tr");
             for (int i = tr.size() - tableRow; i < tr.size(); i++) {
                 int rowIndex = i - (tr.size() - tableRow);
-                Elements td = tr.get(i).getElementsByTag("td");
+                Elements td = getColElementsByTag(tr.get(i));
                 for (int j = 0; j < td.size(); j++) {
                     int colIndex = j;
                     int wide = 0;
                     int height = 0;
-                    String des = td.get(j).text().trim();
-                    des = des.replaceAll("[ \n   ]", "");
+                    String des = JsonParser.spValueProcess(td.get(j).text());
                     for (int k = 0; k < tableCol - colIndex; k++) {
                         if (colIndex + k >= tableCol) {
                             return null;
@@ -173,17 +172,13 @@ public class TableParser {
                             // 横向重定位
                             colIndex = colIndex + k;
                             break;
-                        } else {
-                            continue;
                         }
                     }
                     if (td.get(j).getElementsByAttribute("rowspan").size() != 0) {
-                        height = Integer.parseInt(td.get(j).getElementsByAttribute("rowspan").get(0)
-                                .attr("rowspan"));
+                        height = Integer.parseInt(td.get(j).getElementsByAttribute("rowspan").get(0).attr("rowspan"));
                     }
                     if (td.get(j).getElementsByAttribute("colspan").size() != 0) {
-                        wide = Integer.parseInt(td.get(j).getElementsByAttribute("colspan").get(0)
-                                .attr("colspan"));
+                        wide = Integer.parseInt(td.get(j).getElementsByAttribute("colspan").get(0).attr("colspan"));
                     }
                     if (wide != 0 && height != 0) {
                         for (int m = 0; m < height; m++) {
@@ -194,7 +189,6 @@ public class TableParser {
                                 strMatrix[rowIndex + m][colIndex + n] = des;
                             }
                         }
-                        continue;
                     } else if (wide != 0 || height != 0) {
                         if (wide != 0) {
                             for (int k = 0; k < wide; k++) {
@@ -235,26 +229,23 @@ public class TableParser {
         int tableCol = 0;
         // 表格有效性
         int invalid = 1;
-
         // 表格格式判断
-        if (tableRow == 1) {
-            /*仅一行表格*/
+        if (tableRow <= 1) {
+            /*无效表格：零行或一行表格*/
             return tableCol + "#" + tableRow + "#" + invalid;
         } else {
+            // 判断表格第一行第一列字串长度，判断表名是否在表第一行
+            boolean flag = tableNameIsInFirstRow(trHead);
+            // 计算表格行数、列数
+            int startRow = 0;
+            if (flag) {
+                startRow = 1;
+            }
             float emptyHead = 0;
-            for (int i = 0; i < tableRow; i++) {
-                Elements td = trHead.get(i).getElementsByTag("td");
-                // 判断表格第一行第一列字串长度，判断表名是否在表第一行
-                String firstWord = JsonParser.spValueProcess(trHead.get(0).getElementsByTag("td").get(0).text());
-                // 首行列数限制
-                int colMax = 30;
-                if (firstWord.length() > 25 || firstWord.contains("单位") || td.size() > colMax) {
-                    // 排除第一行
-                    tableRow -= 1;
-                    continue;
-                }
+            for (int i = startRow; i < tableRow; i++) {
+                Elements td = getColElementsByTag(trHead.get(i));
                 for (int j = 0; j < td.size(); j++) {
-                    String tdStr = td.get(j).text().trim().replaceAll("[,]", "");
+                    String tdStr = JsonParser.spValueProcess(td.get(j).text());
                     if (tdStr.equals("")) {
                         emptyHead++;
                     }
@@ -269,11 +260,40 @@ public class TableParser {
                 //执行一次
                 break;
             }
+            // 排除第一行
+            if (flag) {
+                tableCol--;
+            }
+            // 判断表格有效性
             if (emptyHead / tableCol > 0.8 || tableCol < 1 || tableRow < 2) {
                 invalid = 0;
             }
             return tableCol + "#" + tableRow + "#" + invalid;
         }
+    }
+
+    /**
+     * 判断表格第一行是否包含表名
+     * @param trHead
+     * @return
+     */
+    private static boolean tableNameIsInFirstRow(Elements trHead) {
+        boolean flag = false;
+        Elements td = getColElementsByTag(trHead.get(0));
+        if (td.size() > 0) {
+            String firstWord = JsonParser.spValueProcess(td.get(0).text());
+            // 首行列数限制
+            int colMax = 30;
+            // 首行首列字数限制
+            int wordLen = 25;
+            if (firstWord.length() > wordLen
+                    || firstWord.contains("单位:")
+                    || firstWord.contains("单位：")
+                    || trHead.get(0).getElementsByTag("td").size() > colMax) {
+                flag = true;
+            }
+        }
+        return flag;
     }
 
     /**
@@ -394,7 +414,7 @@ public class TableParser {
         int invalid = Integer.parseInt(seg[2]);
         String[][] strMatrix = null;
         if (invalid == 0) {
-            logger.info("find a invalid table tag ...");
+            logger.info(index + "# find a invalid table tag ...");
             isInvalid = false;
         } else {
             strMatrix = generateTableMatrix(element, tableCol, tableRow);
@@ -416,13 +436,31 @@ public class TableParser {
      */
     private static String updateDescreInTable(Element element, String describe) {
         // 获取首行首列字段
-        String word = element.getElementsByTag("tr").get(0).getElementsByTag("td").get(0).text().trim();
-        if (word.contains("单位") && !describe.contains("单位")) {
-            String[] tmp = word.split("单位");
-            word = tmp[0] + "单位" + tmp[1].substring(0, 5);
-            return word;
-        } else {
-            return describe;
+        Element firstRow = element.getElementsByTag("tr").get(0);
+        Elements tdHead = getColElementsByTag(firstRow);
+        if (tdHead.size() > 0) {
+            String word = tdHead.get(0).text().trim();
+            if (word.contains("单位") && !describe.contains("单位")) {
+                String[] tmp = word.split("单位");
+                if (tmp[1].length() >= 5) {
+                    word = tmp[0] + "单位" + tmp[1].substring(0, 5);
+                }
+                return word;
+            }
         }
+        return describe;
+    }
+
+    /**
+     * 获取每行表格列元素：包括表格列标签-td、th
+     * @param trElement
+     * @return
+     */
+    private static Elements getColElementsByTag(Element trElement) {
+        Elements tdElements = trElement.getElementsByTag("td");
+        if (tdElements.size() == 0) {
+            tdElements = trElement.getElementsByTag("th");
+        }
+        return tdElements;
     }
 }
