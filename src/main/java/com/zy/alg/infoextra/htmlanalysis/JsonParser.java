@@ -258,11 +258,13 @@ public class JsonParser {
             }
         }
         String[][] matrix = new String[tableMatrix.size() - mergeNum][tableMatrix.getJSONArray(0).size()];
+        // 当前合并行
+        int curMergeRow = 0;
         for (int i = 0; i < tableMatrix.size(); i++) {
             for (int j = 0; j < tableMatrix.getJSONArray(i).size(); j++) {
                 if (i <= mergeNum && i >= 1) {
                     //合并到第一行
-                    matrix[0][j] += "-" + tableMatrix.getJSONArray(mergeNum).get(j).toString();
+                    matrix[0][j] += "-" + tableMatrix.getJSONArray(curMergeRow).get(j).toString();
                 } else if (i >= mergeNum + 1) {
                     // 正常存储
                     matrix[i - mergeNum][j] = tableMatrix.getJSONArray(i).get(j).toString();
@@ -277,6 +279,7 @@ public class JsonParser {
                     }
                 }
             }
+            curMergeRow++;
         }
         return JSONArray.fromObject(matrix);
     }
@@ -501,7 +504,9 @@ public class JsonParser {
             if (string.contains("%")) {
                 unit = "%";
             }
-            if (string.contains("序号") || string.contains("排序")) {
+            if (string.contains("序号")
+                    ||string.contains("排名")
+                    || string.contains("排序")) {
                 unit = "";
             }
         }
